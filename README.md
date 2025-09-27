@@ -1,44 +1,67 @@
-# Proxmox Services with Terraform
+# Talos Linux on Proxmox with Terraform
 
-This Terraform configuration creates two virtual machines on a Proxmox node using the Arch Linux ISO image. It uses the modern `bpg/proxmox` provider which offers better resource management and active development.
+This 3. **talosctl**: Install the Talos CLI tool: `curl -sL https://talos.dev/install | sh` (optional, for cluster management)erraform configuration creates six virtual machines on Proxmox nodes running **Talos Linux** - a modern, secure, and immutable Kubernetes-focused operating system. 
+
+🚀 **Uses the official `siderolabs/talos` Terraform provider for automated configuration!**
+
+✨ **Features:**
+- ✅ **Dynamic IP addresses** (DHCP) for flexibility
+- ✅ **Complete cluster bootstrap** in one `terraform apply`
+- ✅ **Kubeconfig generation** included
+- ✅ **No manual configuration** required
+
+🚀 **[Full Talos Documentation](TALOS_README.md)**
+
+For the previous Arch Linux setup, see the `arch-setup/` directory.
 
 ## VM Specifications
 
-### VM 1 (archlinux-small)
-- **VM ID**: 100
-- **CPU**: 1 core
-- **RAM**: 4GB
-- **Disk**: 50GB (storage: local-lvm)
-- **Node**: hp
-- **ISO**: archlinux-2025.08.01-x86_64.iso (from local storage)
+| VM Name | Node | VM ID | CPU | RAM | Disk | Role | IP Address |
+|---------|------|-------|-----|-----|------|------|------------|
+| talos-control-plane-1 | hp | 120 | 1 core | 4GB | 50GB | Control Plane | DHCP |
+| talos-worker-1 | hp | 121 | 3 cores | 28GB | 50GB | Worker Node | DHCP |
+| talos-control-plane-2 | gl552 | 122 | 1 core | 3GB | 25GB | Control Plane | DHCP |
+| talos-worker-2 | gl552 | 123 | 3 cores | 5GB | 25GB | Worker Node | DHCP |
+| talos-control-plane-3 | pve | 124 | 1 core | 4GB | 25GB | Control Plane | DHCP |
+| talos-worker-3 | pve | 125 | 3 cores | 12GB | 25GB | Worker Node | DHCP |
 
-### VM 2 (archlinux-large)
-- **VM ID**: 101
-- **CPU**: 3 cores
-- **RAM**: 28GB
-- **Disk**: 50GB (storage: local-lvm)
-- **Node**: hp
-- **ISO**: archlinux-2025.08.01-x86_64.iso (from local storage)
+**ISO Required**: `metal-amd64.iso` (Talos Linux)
+
+## ✨ Automated Configuration with Talos Provider
+
+**New**: This configuration uses the official `siderolabs/talos` Terraform provider to automatically:
+- 🌐 Configure dynamic IP addresses (DHCP) for network flexibility
+- 🔧 Generate machine configurations
+- 🚀 Bootstrap the Kubernetes cluster
+- 📝 Generate kubeconfig and talosconfig
+
+**No manual configuration required!** Just run `terraform apply` and get a complete cluster.
 
 ## Prerequisites
 
 1. **Proxmox Server**: Ensure your Proxmox server is running and accessible
-2. **ISO Image**: Make sure `archlinux-2025.08.01-x86_64.iso` is uploaded to the `local` storage on the `hp` node
-3. **Storage**: Ensure `local-lvm` storage is available on the `hp` node
+2. **Talos ISO**: Download and upload `metal-amd64.iso` from [Talos Releases](https://github.com/siderolabs/talos/releases) to the `local` storage on all nodes
+3. **Storage**: Ensure `local-lvm` storage is available on all nodes (hp, gl552, pve)
 4. **Terraform**: Install Terraform on your local machine
+5. **talosctl**: Install the Talos CLI tool: `curl -sL https://talos.dev/install | sh`
 
-## Provider Migration
+## Terraform Providers
 
-This configuration uses the **bpg/proxmox** provider instead of the older telmate/proxmox provider. The bpg provider offers:
-- Better resource management
+This configuration uses two modern, actively maintained providers:
+
+### **bpg/proxmox** Provider
+- Better resource management than telmate/proxmox
 - Active development and maintenance
 - More comprehensive API coverage
 - Better error handling
 
-If you're migrating from telmate/proxmox, you'll need to:
-1. Update your configuration (already done in this project)
-2. Run `terraform init -upgrade` to download the new provider
-3. Consider recreating resources if there are state incompatibilities
+### **siderolabs/talos** Provider  
+- Official Talos provider from Sidero Labs
+- Automated machine configuration
+- Cluster bootstrapping
+- Kubeconfig generation
+
+Both providers work together to create a fully automated Talos cluster deployment.
 
 ## Setup Instructions
 
@@ -83,9 +106,9 @@ sudo mv terraform /usr/local/bin/
    - `terraform@pve!mytoken` with your actual `username@realm!token_id`
    - `your-api-token-secret-here` with the actual token secret you copied
 
-### 4. Deploy the Infrastructure
+### 4. Deploy the Complete Cluster
 
-1. Initialize Terraform:
+1. Initialize Terraform (install providers):
    ```bash
    terraform init
    ```
@@ -95,19 +118,41 @@ sudo mv terraform /usr/local/bin/
    terraform plan
    ```
 
-3. Apply the configuration:
+3. Deploy everything in one command:
    ```bash
    terraform apply
    ```
 
 4. Confirm the deployment by typing `yes` when prompted.
 
-### 5. Access Your VMs
+**That's it!** Terraform will:
+- Create all 6 VMs on Proxmox
+- Configure static IP addresses
+- Install and configure Talos Linux
+- Bootstrap the Kubernetes cluster
+- Generate configuration files
 
-After deployment, you can:
-- Access the VMs through the Proxmox web interface
-- Use the VM console to install Arch Linux
-- The VMs will be configured to boot from the ISO image initially
+### 5. Access Your Cluster
+
+After deployment completes (usually 5-10 minutes):
+
+```bash
+# Save the cluster configurations
+terraform output -raw talosconfig > talosconfig
+terraform output -raw kubeconfig > kubeconfig
+
+# Set environment variables
+export TALOSCONFIG=$(pwd)/talosconfig
+export KUBECONFIG=$(pwd)/kubeconfig
+
+# Get the dynamic IP addresses
+terraform output control_plane_ips
+terraform output worker_ips
+
+# Check cluster status
+kubectl get nodes -o wide
+kubectl get pods -A
+```
 
 ## Configuration Details
 
@@ -171,56 +216,82 @@ ls /var/lib/vz/template/iso/
 - Consider using environment variables or Terraform Cloud for production deployments
 - Review and adjust security groups and firewall rules as needed
 
-## Post-Deployment: Installing Arch Linux
+## Cluster Information
 
-After the VMs are created, you need to install Arch Linux on each VM. See the detailed guide:
+The Terraform configuration automatically creates:
 
-📖 **[Arch Linux Installation Guide](ARCH_INSTALLATION_GUIDE.md)**
+### Control Plane Nodes
+- **talos-control-plane-1**: DHCP IP (hp node, 4GB RAM, 1 CPU)
+- **talos-control-plane-2**: DHCP IP (gl552 node, 3GB RAM, 1 CPU)  
+- **talos-control-plane-3**: DHCP IP (pve node, 4GB RAM, 1 CPU)
 
-The guide includes:
-- Automated installation script
-- Manual installation steps
-- Network configuration with static IPs
-- Post-installation security recommendations
+### Worker Nodes
+- **talos-worker-1**: DHCP IP (hp node, 28GB RAM, 3 CPU)
+- **talos-worker-2**: DHCP IP (gl552 node, 5GB RAM, 3 CPU)
+- **talos-worker-3**: DHCP IP (pve node, 12GB RAM, 3 CPU)
 
-### Quick Installation
+### Network Configuration
+- **IP Assignment**: DHCP (dynamic)
+- **DNS**: 8.8.8.8, 8.8.4.4
+- **Cluster Endpoint**: Dynamic (based on first control plane's IP)
 
-Use the provided automation script:
+## Advanced Management
 
+### View cluster information
 ```bash
-# After booting each VM from the Arch ISO
-curl -O https://raw.githubusercontent.com/khanhcmlab/proxmox-services/main/install-archlinux.sh
-chmod +x install-archlinux.sh
-
-# Run for each VM with appropriate hostname and IP
-./install-archlinux.sh control-plane-1 192.168.1.110
-./install-archlinux.sh worker-1 192.168.1.111
-# ... etc for all VMs
+terraform output cluster_info
 ```
 
-## Static IP Configuration
+### Get dynamic IP addresses
+```bash
+terraform output control_plane_ips
+terraform output worker_ips
+```
 
-| VM Name | IP Address | Role |
-|---------|------------|------|
-| control-plane-1 | 192.168.1.110 | Control Plane |
-| worker-1 | 192.168.1.111 | Worker Node |
-| control-plane-2 | 192.168.1.112 | Control Plane |
-| worker-2 | 192.168.1.113 | Worker Node |
-| control-plane-3 | 192.168.1.114 | Control Plane |
-| worker-3 | 192.168.1.115 | Worker Node |
+### Check cluster health (use actual IPs from above)
+```bash
+talosctl health --nodes <control-plane-ip-1>,<control-plane-ip-2>,<control-plane-ip-3>
+```
+
+### Access Talos dashboard (use actual first control plane IP)
+```bash
+talosctl dashboard --nodes <first-control-plane-ip>
+```
+
+## Why Talos Linux?
+
+- 🛡️ **Immutable & Secure**: Read-only OS, no SSH access
+- 🚀 **Kubernetes-Native**: Built specifically for K8s
+- 🔄 **Self-Healing**: Automatic recovery and updates
+- ⚡ **Fast Boot**: ~30 second boot time
+- 📦 **Minimal**: ~150MB footprint
+- 🎯 **API-Driven**: Managed via API, not traditional tools
 
 ## File Structure
 
 ```
 .
-├── README.md                    # This file
-├── ARCH_INSTALLATION_GUIDE.md   # Detailed Arch Linux installation guide
-├── providers.tf                 # Terraform and provider configuration
+├── README.md                    # This file (Talos setup with provider)
+├── TALOS_README.md              # Detailed Talos Linux guide
+├── providers.tf                 # Terraform providers (proxmox + talos)
 ├── variables.tf                 # Variable definitions
-├── main.tf                      # VM resource definitions
-├── outputs.tf                   # Output definitions
+├── main.tf                      # ⭐ Complete Talos cluster definition
+├── outputs.tf                   # Cluster outputs (IPs, configs, etc.)
 ├── cloud-init.tf                # Network configuration locals
-├── install-archlinux.sh         # Automated installation script
 ├── terraform.tfvars.example     # Example variables file
-└── .gitignore                   # Git ignore rules
+├── .gitignore                   # Git ignore rules
+└── arch-setup/                  # Previous Arch Linux setup
+    ├── README.md
+    ├── ARCH_INSTALLATION_GUIDE.md
+    ├── main.tf
+    ├── install-archlinux.sh
+    ├── auto-install.sh
+    ├── batch-install.sh
+    └── ... (all previous files)
 ```
+
+**Clean and Simple:**
+- ⭐ `main.tf` includes complete Talos cluster automation
+- 🔧 Uses `siderolabs/talos` provider for automated configuration  
+- 📝 Configuration files generated automatically via Terraform outputs
+- 🧼 No legacy scripts or manual processes needed

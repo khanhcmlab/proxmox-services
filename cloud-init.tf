@@ -1,34 +1,34 @@
-# Network configuration for VMs
+# Network configuration for Talos VMs
 locals {
-  vm_configs = {
-    "control-plane-1" = {
-      hostname = "control-plane-1"
-      ip       = "192.168.1.110"
+  talos_vm_configs = {
+    "talos-control-plane-1" = {
+      hostname = "talos-control-plane-1"
+      ip       = "192.168.1.120"
       node     = "hp"
     }
-    "worker-1" = {
-      hostname = "worker-1"
-      ip       = "192.168.1.111" 
+    "talos-worker-1" = {
+      hostname = "talos-worker-1"
+      ip       = "192.168.1.121" 
       node     = "hp"
     }
-    "control-plane-2" = {
-      hostname = "control-plane-2"
-      ip       = "192.168.1.112"
+    "talos-control-plane-2" = {
+      hostname = "talos-control-plane-2"
+      ip       = "192.168.1.122"
       node     = "gl552"
     }
-    "worker-2" = {
-      hostname = "worker-2"
-      ip       = "192.168.1.113"
+    "talos-worker-2" = {
+      hostname = "talos-worker-2"
+      ip       = "192.168.1.123"
       node     = "gl552"
     }
-    "control-plane-3" = {
-      hostname = "control-plane-3"
-      ip       = "192.168.1.114"
+    "talos-control-plane-3" = {
+      hostname = "talos-control-plane-3"
+      ip       = "192.168.1.124"
       node     = "pve"
     }
-    "worker-3" = {
-      hostname = "worker-3"
-      ip       = "192.168.1.115"
+    "talos-worker-3" = {
+      hostname = "talos-worker-3"
+      ip       = "192.168.1.125"
       node     = "pve"
     }
   }

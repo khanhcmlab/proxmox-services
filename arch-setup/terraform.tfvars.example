@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars.example
+
+# Proxmox connection settings using API Token
+proxmox_api_url      = "https://your-proxmox-server:8006/api2/json"
+proxmox_user         = "terraform@pve!mytoken"  # Format: username@realm!token_id
+proxmox_password     = "your-api-token-secret-here"
+proxmox_tls_insecure = true
+
+# Optional: SSH keys for VM access (if you plan to use cloud-init later)
+# ssh_public_key  = "ssh-rsa AAAAB3NzaC1yc2EAAAA... your-public-key"
+# ssh_private_key = "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"

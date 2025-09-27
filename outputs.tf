@@ -1,89 +1,119 @@
-output "vm_small_ip" {
-  description = "IP address of the small VM"
-  value       = try(proxmox_virtual_environment_vm.vm_small.ipv4_addresses[1][0], "Not available")
+# Dynamic IP addresses for all nodes
+output "control_plane_ips" {
+  description = "Dynamic IP addresses of control plane nodes"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.talos_control_planes : 
+    name => try(vm.ipv4_addresses[1][0], "Not available yet")
+  }
 }
 
-output "vm_large_ip" {
-  description = "IP address of the large VM"
-  value       = try(proxmox_virtual_environment_vm.vm_large.ipv4_addresses[1][0], "Not available")
+output "worker_ips" {
+  description = "Dynamic IP addresses of worker nodes"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.talos_workers : 
+    name => try(vm.ipv4_addresses[1][0], "Not available yet")
+  }
 }
 
-output "vm_small_id" {
-  description = "VM ID of the small VM"
-  value       = proxmox_virtual_environment_vm.vm_small.vm_id
+# VM IDs for control planes
+output "control_plane_vm_ids" {
+  description = "VM IDs of control plane nodes"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.talos_control_planes : name => vm.vm_id
+  }
 }
 
-output "vm_large_id" {
-  description = "VM ID of the large VM"
-  value       = proxmox_virtual_environment_vm.vm_large.vm_id
+# VM IDs for workers
+output "worker_vm_ids" {
+  description = "VM IDs of worker nodes"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.talos_workers : name => vm.vm_id
+  }
 }
 
-output "vm_small_name" {
-  description = "Name of the small VM"
-  value       = proxmox_virtual_environment_vm.vm_small.name
+# VM names for control planes
+output "control_plane_names" {
+  description = "Names of control plane nodes"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.talos_control_planes : name => vm.name
+  }
 }
 
-output "vm_large_name" {
-  description = "Name of the large VM"
-  value       = proxmox_virtual_environment_vm.vm_large.name
+# VM names for workers
+output "worker_names" {
+  description = "Names of worker nodes"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.talos_workers : name => vm.name
+  }
 }
 
-output "control_plane_2_ip" {
-  description = "IP address of control-plane-2"
-  value       = try(proxmox_virtual_environment_vm.control_plane_2.ipv4_addresses[1][0], "Not available")
+# Cluster configuration
+output "cluster_endpoint" {
+  description = "Kubernetes cluster endpoint"
+  value       = "https://${try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "Not available yet")}:6443"
 }
 
-output "worker_2_ip" {
-  description = "IP address of worker-2"
-  value       = try(proxmox_virtual_environment_vm.worker_2.ipv4_addresses[1][0], "Not available")
+# Talos configuration
+output "talosconfig" {
+  description = "Talos client configuration"
+  value       = data.talos_client_configuration.talosconfig.talos_config
+  sensitive   = true
 }
 
-output "control_plane_2_id" {
-  description = "VM ID of control-plane-2"
-  value       = proxmox_virtual_environment_vm.control_plane_2.vm_id
+# Kubernetes configuration
+output "kubeconfig" {
+  description = "Kubernetes cluster configuration"
+  value       = talos_cluster_kubeconfig.kubeconfig.kubeconfig_raw
+  sensitive   = true
 }
 
-output "worker_2_id" {
-  description = "VM ID of worker-2"
-  value       = proxmox_virtual_environment_vm.worker_2.vm_id
+# Cluster information summary
+output "cluster_info" {
+  description = "Complete cluster information"
+  value = {
+    cluster_name     = "talos-cluster"
+    cluster_endpoint = "https://${try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "Not available yet")}:6443"
+    control_planes = [
+      for name, config in local.controlplane_configs : {
+        name     = config.hostname
+        ip       = try(proxmox_virtual_environment_vm.talos_control_planes[name].ipv4_addresses[1][0], "Not available yet")
+        node     = config.node
+        vm_id    = config.vm_id
+      }
+    ]
+    workers = [
+      for name, config in local.worker_configs : {
+        name     = config.hostname
+        ip       = try(proxmox_virtual_environment_vm.talos_workers[name].ipv4_addresses[1][0], "Not available yet")
+        node     = config.node
+        vm_id    = config.vm_id
+      }
+    ]
+  }
 }
 
-output "control_plane_2_name" {
-  description = "Name of control-plane-2"
-  value       = proxmox_virtual_environment_vm.control_plane_2.name
-}
+# Instructions for accessing the cluster
+output "access_instructions" {
+  description = "Instructions for accessing the cluster"
+  value = <<-EOT
+    1. Save the Talos configuration:
+       terraform output -raw talosconfig > talosconfig
+       export TALOSCONFIG=$(pwd)/talosconfig
 
-output "worker_2_name" {
-  description = "Name of worker-2"
-  value       = proxmox_virtual_environment_vm.worker_2.name
-}
+    2. Save the Kubernetes configuration:
+       terraform output -raw kubeconfig > kubeconfig
+       export KUBECONFIG=$(pwd)/kubeconfig
 
-output "control_plane_3_ip" {
-  description = "IP address of control-plane-3"
-  value       = try(proxmox_virtual_environment_vm.control_plane_3.ipv4_addresses[1][0], "Not available")
-}
+    3. Get the dynamic IP addresses:
+       terraform output control_plane_ips
+       terraform output worker_ips
 
-output "worker_3_ip" {
-  description = "IP address of worker-3"
-  value       = try(proxmox_virtual_environment_vm.worker_3.ipv4_addresses[1][0], "Not available")
-}
+    4. Check cluster status (use actual IPs from step 3):
+       talosctl health --nodes <control-plane-ips>
+       kubectl get nodes -o wide
 
-output "control_plane_3_id" {
-  description = "VM ID of control-plane-3"
-  value       = proxmox_virtual_environment_vm.control_plane_3.vm_id
-}
-
-output "worker_3_id" {
-  description = "VM ID of worker-3"
-  value       = proxmox_virtual_environment_vm.worker_3.vm_id
-}
-
-output "control_plane_3_name" {
-  description = "Name of control-plane-3"
-  value       = proxmox_virtual_environment_vm.control_plane_3.name
-}
-
-output "worker_3_name" {
-  description = "Name of worker-3"
-  value       = proxmox_virtual_environment_vm.worker_3.name
+    5. Access the cluster:
+       kubectl cluster-info
+       kubectl get pods -A
+  EOT
 }
