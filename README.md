@@ -1,67 +1,49 @@
-# Talos Linux on Proxmox with Terraform
+# Proxmox Services with Terraform
 
-This 3. **talosctl**: Install the Talos CLI tool: `curl -sL https://talos.dev/install | sh` (optional, for cluster management)erraform configuration creates six virtual machines on Proxmox nodes running **Talos Linux** - a modern, secure, and immutable Kubernetes-focused operating system. 
+This Terraform configuration creates six virtual machines on Proxmox nodes using **Ubuntu 24.04 LTS** cloud image. It uses the modern `bpg/proxmox` provider which offers better resource management and active development.
 
-🚀 **Uses the official `siderolabs/talos` Terraform provider for automated configuration!**
-
-✨ **Features:**
-- ✅ **Dynamic IP addresses** (DHCP) for flexibility
-- ✅ **Complete cluster bootstrap** in one `terraform apply`
-- ✅ **Kubeconfig generation** included
-- ✅ **No manual configuration** required
-
-🚀 **[Full Talos Documentation](TALOS_README.md)**
-
-For the previous Arch Linux setup, see the `arch-setup/` directory.
+🚀 **For Talos Linux (automated Kubernetes cluster)**, see the [`talos-setup/`](talos-setup/) directory.
 
 ## VM Specifications
 
 | VM Name | Node | VM ID | CPU | RAM | Disk | Role | IP Address |
 |---------|------|-------|-----|-----|------|------|------------|
-| talos-control-plane-1 | hp | 120 | 1 core | 4GB | 50GB | Control Plane | DHCP |
-| talos-worker-1 | hp | 121 | 3 cores | 28GB | 50GB | Worker Node | DHCP |
-| talos-control-plane-2 | gl552 | 122 | 1 core | 3GB | 25GB | Control Plane | DHCP |
-| talos-worker-2 | gl552 | 123 | 3 cores | 5GB | 25GB | Worker Node | DHCP |
-| talos-control-plane-3 | pve | 124 | 1 core | 4GB | 25GB | Control Plane | DHCP |
-| talos-worker-3 | pve | 125 | 3 cores | 12GB | 25GB | Worker Node | DHCP |
+| control-plane-1 | hp | 110 | 1 core | 4GB | 50GB | Control Plane | 192.168.1.110 |
+| worker-1 | hp | 111 | 3 cores | 28GB | 50GB | Worker Node | 192.168.1.111 |
+| control-plane-2 | gl552 | 112 | 1 core | 3GB | 25GB | Control Plane | 192.168.1.112 |
+| worker-2 | gl552 | 113 | 3 cores | 5GB | 25GB | Worker Node | 192.168.1.113 |
+| control-plane-3 | pve | 114 | 1 core | 4GB | 25GB | Control Plane | 192.168.1.114 |
+| worker-3 | pve | 115 | 3 cores | 12GB | 25GB | Worker Node | 192.168.1.115 |
 
-**ISO Required**: `metal-amd64.iso` (Talos Linux)
-
-## ✨ Automated Configuration with Talos Provider
-
-**New**: This configuration uses the official `siderolabs/talos` Terraform provider to automatically:
-- 🌐 Configure dynamic IP addresses (DHCP) for network flexibility
-- 🔧 Generate machine configurations
-- 🚀 Bootstrap the Kubernetes cluster
-- 📝 Generate kubeconfig and talosconfig
-
-**No manual configuration required!** Just run `terraform apply` and get a complete cluster.
+**OS**: Ubuntu 24.04 LTS (minimal cloud image)
 
 ## Prerequisites
 
 1. **Proxmox Server**: Ensure your Proxmox server is running and accessible
-2. **Talos ISO**: Download and upload `metal-amd64.iso` from [Talos Releases](https://github.com/siderolabs/talos/releases) to the `local` storage on all nodes
-3. **Storage**: Ensure `local-lvm` storage is available on all nodes (hp, gl552, pve)
+2. **Ubuntu Cloud Image**: Download Ubuntu 24.04 LTS cloud image to `local` storage on all nodes (hp, gl552, pve)
+3. **Storage**: Ensure `local-lvm` storage is available on all nodes
 4. **Terraform**: Install Terraform on your local machine
-5. **talosctl**: Install the Talos CLI tool: `curl -sL https://talos.dev/install | sh`
 
-## Terraform Providers
+### Download Ubuntu Cloud Image
 
-This configuration uses two modern, actively maintained providers:
+On each Proxmox node, download the Ubuntu 24.04 cloud image:
+```bash
+cd /var/lib/vz/template/iso/
+wget https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64.img
+```
 
-### **bpg/proxmox** Provider
-- Better resource management than telmate/proxmox
+## Provider Migration
+
+This configuration uses the **bpg/proxmox** provider instead of the older telmate/proxmox provider. The bpg provider offers:
+- Better resource management
 - Active development and maintenance
 - More comprehensive API coverage
 - Better error handling
 
-### **siderolabs/talos** Provider  
-- Official Talos provider from Sidero Labs
-- Automated machine configuration
-- Cluster bootstrapping
-- Kubeconfig generation
-
-Both providers work together to create a fully automated Talos cluster deployment.
+If you're migrating from telmate/proxmox, you'll need to:
+1. Update your configuration (already done in this project)
+2. Run `terraform init -upgrade` to download the new provider
+3. Consider recreating resources if there are state incompatibilities
 
 ## Setup Instructions
 
@@ -106,9 +88,9 @@ sudo mv terraform /usr/local/bin/
    - `terraform@pve!mytoken` with your actual `username@realm!token_id`
    - `your-api-token-secret-here` with the actual token secret you copied
 
-### 4. Deploy the Complete Cluster
+### 4. Deploy the Infrastructure
 
-1. Initialize Terraform (install providers):
+1. Initialize Terraform:
    ```bash
    terraform init
    ```
@@ -118,41 +100,19 @@ sudo mv terraform /usr/local/bin/
    terraform plan
    ```
 
-3. Deploy everything in one command:
+3. Apply the configuration:
    ```bash
    terraform apply
    ```
 
 4. Confirm the deployment by typing `yes` when prompted.
 
-**That's it!** Terraform will:
-- Create all 6 VMs on Proxmox
-- Configure static IP addresses
-- Install and configure Talos Linux
-- Bootstrap the Kubernetes cluster
-- Generate configuration files
+### 5. Access Your VMs
 
-### 5. Access Your Cluster
-
-After deployment completes (usually 5-10 minutes):
-
-```bash
-# Save the cluster configurations
-terraform output -raw talosconfig > talosconfig
-terraform output -raw kubeconfig > kubeconfig
-
-# Set environment variables
-export TALOSCONFIG=$(pwd)/talosconfig
-export KUBECONFIG=$(pwd)/kubeconfig
-
-# Get the dynamic IP addresses
-terraform output control_plane_ips
-terraform output worker_ips
-
-# Check cluster status
-kubectl get nodes -o wide
-kubectl get pods -A
-```
+After deployment, you can:
+- Access the VMs through the Proxmox web interface
+- Use the VM console to install Arch Linux
+- The VMs will be configured to boot from the ISO image initially
 
 ## Configuration Details
 
@@ -192,8 +152,8 @@ terraform destroy
 
 1. **Authentication Errors**: Verify your Proxmox API token in `terraform.tfvars`
 2. **Storage Not Found**: Ensure `local` and `local-lvm` storages exist on the `hp` node
-3. **Node Not Found**: Verify the `hp` node exists and is online
-4. **ISO Not Found**: Ensure `archlinux-2025.08.01-x86_64.iso` is uploaded to `local` storage
+3. **Node Not Found**: Verify all nodes (hp, gl552, pve) exist and are online
+4. **Image Not Found**: Ensure `ubuntu-24.04-minimal-cloudimg-amd64.img` is available in `local` storage on all nodes
 5. **Provider Migration**: If upgrading from telmate/proxmox, run `terraform init -upgrade` after changing providers
 
 ### Useful Commands
@@ -204,7 +164,7 @@ Check Proxmox storage:
 pvesm status
 ```
 
-List ISO images:
+List available images:
 ```bash
 # On Proxmox server
 ls /var/lib/vz/template/iso/
@@ -216,82 +176,78 @@ ls /var/lib/vz/template/iso/
 - Consider using environment variables or Terraform Cloud for production deployments
 - Review and adjust security groups and firewall rules as needed
 
-## Cluster Information
+## Post-Deployment: Ready to Use!
 
-The Terraform configuration automatically creates:
+After deployment, your Ubuntu VMs are **automatically configured and ready to use**:
 
-### Control Plane Nodes
-- **talos-control-plane-1**: DHCP IP (hp node, 4GB RAM, 1 CPU)
-- **talos-control-plane-2**: DHCP IP (gl552 node, 3GB RAM, 1 CPU)  
-- **talos-control-plane-3**: DHCP IP (pve node, 4GB RAM, 1 CPU)
+### ✅ What's Already Configured
+- **Ubuntu 24.04 LTS**: Minimal cloud image pre-installed
+- **Static IP addresses**: As specified in the configuration
+- **SSH access**: Ready with `ubuntu` user
+- **Essential packages**: curl, wget, git, htop, net-tools installed
+- **QEMU Guest Agent**: Enabled for better Proxmox integration
 
-### Worker Nodes
-- **talos-worker-1**: DHCP IP (hp node, 28GB RAM, 3 CPU)
-- **talos-worker-2**: DHCP IP (gl552 node, 5GB RAM, 3 CPU)
-- **talos-worker-3**: DHCP IP (pve node, 12GB RAM, 3 CPU)
+### 🔑 Default Credentials
+- **Username**: `ubuntu`
+- **Password**: `ubuntu`
+- **SSH**: Enabled and ready
 
-### Network Configuration
-- **IP Assignment**: DHCP (dynamic)
-- **DNS**: 8.8.8.8, 8.8.4.4
-- **Cluster Endpoint**: Dynamic (based on first control plane's IP)
+### 🌐 Access Your VMs
 
-## Advanced Management
-
-### View cluster information
+Connect to any VM using SSH:
 ```bash
-terraform output cluster_info
+# Connect to each VM
+ssh ubuntu@192.168.1.110  # control-plane-1
+ssh ubuntu@192.168.1.111  # worker-1
+ssh ubuntu@192.168.1.112  # control-plane-2
+ssh ubuntu@192.168.1.113  # worker-2
+ssh ubuntu@192.168.1.114  # control-plane-3
+ssh ubuntu@192.168.1.115  # worker-3
 ```
 
-### Get dynamic IP addresses
+### 📋 Get VM Information
 ```bash
-terraform output control_plane_ips
-terraform output worker_ips
+# View all VM details
+terraform output vm_summary
+
+# Get IP addresses
+terraform output vm_ips
+
+# Get SSH commands
+terraform output ssh_connections
 ```
 
-### Check cluster health (use actual IPs from above)
-```bash
-talosctl health --nodes <control-plane-ip-1>,<control-plane-ip-2>,<control-plane-ip-3>
-```
+## Static IP Configuration
 
-### Access Talos dashboard (use actual first control plane IP)
-```bash
-talosctl dashboard --nodes <first-control-plane-ip>
-```
+| VM Name | IP Address | Role |
+|---------|------------|------|
+| control-plane-1 | 192.168.1.110 | Control Plane |
+| worker-1 | 192.168.1.111 | Worker Node |
+| control-plane-2 | 192.168.1.112 | Control Plane |
+| worker-2 | 192.168.1.113 | Worker Node |
+| control-plane-3 | 192.168.1.114 | Control Plane |
+| worker-3 | 192.168.1.115 | Worker Node |
 
-## Why Talos Linux?
+## Next Steps
 
-- 🛡️ **Immutable & Secure**: Read-only OS, no SSH access
-- 🚀 **Kubernetes-Native**: Built specifically for K8s
-- 🔄 **Self-Healing**: Automatic recovery and updates
-- ⚡ **Fast Boot**: ~30 second boot time
-- 📦 **Minimal**: ~150MB footprint
-- 🎯 **API-Driven**: Managed via API, not traditional tools
+Your Ubuntu VMs are ready for:
+- **Kubernetes cluster setup** (kubeadm, k3s, etc.)
+- **Container workloads** (Docker, Podman)
+- **Development environments**
+- **Testing and experimentation**
 
 ## File Structure
 
 ```
 .
-├── README.md                    # This file (Talos setup with provider)
-├── TALOS_README.md              # Detailed Talos Linux guide
-├── providers.tf                 # Terraform providers (proxmox + talos)
+├── README.md                    # This file
+├── providers.tf                 # Terraform and provider configuration
 ├── variables.tf                 # Variable definitions
-├── main.tf                      # ⭐ Complete Talos cluster definition
-├── outputs.tf                   # Cluster outputs (IPs, configs, etc.)
+├── main.tf                      # Ubuntu VM definitions with cloud-init
+├── outputs.tf                   # VM information outputs
 ├── cloud-init.tf                # Network configuration locals
 ├── terraform.tfvars.example     # Example variables file
 ├── .gitignore                   # Git ignore rules
-└── arch-setup/                  # Previous Arch Linux setup
-    ├── README.md
-    ├── ARCH_INSTALLATION_GUIDE.md
-    ├── main.tf
-    ├── install-archlinux.sh
-    ├── auto-install.sh
-    ├── batch-install.sh
-    └── ... (all previous files)
+└── talos-setup/                 # Alternative Talos Linux setup
+    └── ... (Talos configuration files)
 ```
-
-**Clean and Simple:**
-- ⭐ `main.tf` includes complete Talos cluster automation
-- 🔧 Uses `siderolabs/talos` provider for automated configuration  
-- 📝 Configuration files generated automatically via Terraform outputs
-- 🧼 No legacy scripts or manual processes needed

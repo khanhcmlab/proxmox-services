@@ -1,332 +1,184 @@
-# Talos Machine Secrets
-resource "talos_machine_secrets" "machine_secrets" {
-  talos_version = "v1.8"
-}
-
-# First we need to get the dynamic IP of the first control plane
-# We'll use a data source to get the VM info after it's created
-data "talos_machine_configuration" "controlplane" {
-  cluster_name     = "talos-cluster"
-  cluster_endpoint = "https://${try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "127.0.0.1")}:6443"
-  machine_type     = "controlplane"
-  machine_secrets  = talos_machine_secrets.machine_secrets.machine_secrets
-}
-
-data "talos_machine_configuration" "worker" {
-  cluster_name     = "talos-cluster" 
-  cluster_endpoint = "https://${try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "127.0.0.1")}:6443"
-  machine_type     = "worker"
-  machine_secrets  = talos_machine_secrets.machine_secrets.machine_secrets
-}
-
-# Talos Client Configuration - will be populated after VMs are created
-data "talos_client_configuration" "talosconfig" {
-  depends_on = [proxmox_virtual_environment_vm.talos_control_planes]
-  
-  cluster_name         = "talos-cluster"
-  client_configuration = talos_machine_secrets.machine_secrets.client_configuration
-  endpoints = [
-    for vm in proxmox_virtual_environment_vm.talos_control_planes : 
-    try(vm.ipv4_addresses[1][0], "127.0.0.1")
-  ]
-}
-
-# Generate machine-specific configurations with static IPs
+# VM Configuration Locals
 locals {
-  # Control plane configurations with dynamic IPs
-  controlplane_configs = {
-    "talos-control-plane-1" = {
-      hostname = "talos-control-plane-1"
-      node     = "hp"
-      vm_id    = 120
-      memory   = 4096
-      disk     = 50
-      cpu      = 1
+  vms = {
+    "control-plane-1" = {
+      node_name = "hp"
+      vm_id     = 110
+      cpu_cores = 1
+      memory    = 4096
+      disk_size = 50
+      ip_address = "192.168.1.110/24"
     }
-    "talos-control-plane-2" = {
-      hostname = "talos-control-plane-2"
-      node     = "gl552"
-      vm_id    = 122
-      memory   = 3072
-      disk     = 25
-      cpu      = 1
+    "worker-1" = {
+      node_name = "hp"
+      vm_id     = 111
+      cpu_cores = 3
+      memory    = 28672
+      disk_size = 50
+      ip_address = "192.168.1.111/24"
     }
-    "talos-control-plane-3" = {
-      hostname = "talos-control-plane-3"
-      node     = "pve"
-      vm_id    = 124
-      memory   = 4096
-      disk     = 25
-      cpu      = 1
+    "control-plane-2" = {
+      node_name = "gl552"
+      vm_id     = 112
+      cpu_cores = 1
+      memory    = 3072
+      disk_size = 25
+      ip_address = "192.168.1.112/24"
     }
-  }
-
-  # Worker configurations with dynamic IPs
-  worker_configs = {
-    "talos-worker-1" = {
-      hostname = "talos-worker-1"
-      node     = "hp"
-      vm_id    = 121
-      memory   = 28672
-      disk     = 50
-      cpu      = 3
+    "worker-2" = {
+      node_name = "gl552"
+      vm_id     = 113
+      cpu_cores = 3
+      memory    = 5120
+      disk_size = 25
+      ip_address = "192.168.1.113/24"
     }
-    "talos-worker-2" = {
-      hostname = "talos-worker-2"
-      node     = "gl552"
-      vm_id    = 123
-      memory   = 5120
-      disk     = 25
-      cpu      = 3
+    "control-plane-3" = {
+      node_name = "pve"
+      vm_id     = 114
+      cpu_cores = 1
+      memory    = 4096
+      disk_size = 25
+      ip_address = "192.168.1.114/24"
     }
-    "talos-worker-3" = {
-      hostname = "talos-worker-3"
-      node     = "pve"
-      vm_id    = 125
-      memory   = 12288
-      disk     = 25
-      cpu      = 3
+    "worker-3" = {
+      node_name = "pve"
+      vm_id     = 115
+      cpu_cores = 3
+      memory    = 12288
+      disk_size = 25
+      ip_address = "192.168.1.115/24"
     }
-  }
-
-  # Network configuration for all machines (DHCP-based)
-  network_config = {
-    nameservers = ["8.8.8.8", "8.8.4.4"]
   }
 }
 
-# Generate machine-specific configurations with DHCP
-data "talos_machine_configuration" "controlplane_dhcp" {
-  for_each = local.controlplane_configs
+# Ubuntu VMs
+resource "proxmox_virtual_environment_vm" "ubuntu_vms" {
+  for_each = local.vms
 
-  cluster_name     = "talos-cluster"
-  cluster_endpoint = "https://${try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "127.0.0.1")}:6443"
-  machine_type     = "controlplane"
-  machine_secrets  = talos_machine_secrets.machine_secrets.machine_secrets
-
-  config_patches = [
-    yamlencode({
-      machine = {
-        network = {
-          hostname = each.value.hostname
-          interfaces = [{
-            interface = "ens18"
-            dhcp = true
-          }]
-          nameservers = local.network_config.nameservers
-        }
-        install = {
-          disk = "/dev/sda"
-        }
-      }
-      cluster = {
-        apiServer = {
-          certSANs = [each.value.hostname]
-        }
-      }
-    })
-  ]
-}
-
-data "talos_machine_configuration" "worker_dhcp" {
-  for_each = local.worker_configs
-
-  cluster_name     = "talos-cluster"
-  cluster_endpoint = "https://${try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "127.0.0.1")}:6443"
-  machine_type     = "worker"
-  machine_secrets  = talos_machine_secrets.machine_secrets.machine_secrets
-
-  config_patches = [
-    yamlencode({
-      machine = {
-        network = {
-          hostname = each.value.hostname
-          interfaces = [{
-            interface = "ens18"
-            dhcp = true
-          }]
-          nameservers = local.network_config.nameservers
-        }
-        install = {
-          disk = "/dev/sda"
-        }
-      }
-    })
-  ]
-}
-
-# Proxmox VMs - Control Planes
-resource "proxmox_virtual_environment_vm" "talos_control_planes" {
-  for_each = local.controlplane_configs
-
-  name      = each.value.hostname
-  node_name = each.value.node
+  name      = each.key
+  node_name = each.value.node_name
   vm_id     = each.value.vm_id
-  
+
   # VM Configuration
   cpu {
-    cores = each.value.cpu
+    cores = each.value.cpu_cores
     type  = "host"
   }
-  
+
   memory {
     dedicated = each.value.memory
   }
-  
+
   # Boot configuration
-  boot_order = ["scsi0", "ide2"]
-  
+  boot_order = ["scsi0"]
+
   # SCSI Controller
   scsi_hardware = "virtio-scsi-pci"
-  
-  # Hard disk
+
+  # Hard disk (clone from Ubuntu cloud image)
   disk {
     datastore_id = "local-lvm"
-    file_id      = null
+    file_id      = "local:iso/ubuntu-24.04-minimal-cloudimg-amd64.img"
     interface    = "scsi0"
     iothread     = true
-    size         = each.value.disk
+    size         = each.value.disk_size
   }
-  
-  # CD-ROM with Talos ISO
-  cdrom {
-    file_id   = "local:iso/metal-amd64.iso"
-    interface = "ide2"
-  }
-  
+
   # Network
   network_device {
     bridge = "vmbr0"
     model  = "virtio"
   }
-  
+
   # VM Settings
   agent {
     enabled = true
   }
-  
+
   operating_system {
     type = "l26"  # Linux 2.6+ kernel
   }
-  
-  # Lifecycle
-  started = true
-  on_boot = true
-}
 
-# Proxmox VMs - Workers
-resource "proxmox_virtual_environment_vm" "talos_workers" {
-  for_each = local.worker_configs
-
-  name      = each.value.hostname
-  node_name = each.value.node
-  vm_id     = each.value.vm_id
-  
-  # VM Configuration
-  cpu {
-    cores = each.value.cpu
-    type  = "host"
-  }
-  
-  memory {
-    dedicated = each.value.memory
-  }
-  
-  # Boot configuration
-  boot_order = ["scsi0", "ide2"]
-  
-  # SCSI Controller
-  scsi_hardware = "virtio-scsi-pci"
-  
-  # Hard disk
-  disk {
+  # Cloud-init configuration
+  initialization {
     datastore_id = "local-lvm"
-    file_id      = null
-    interface    = "scsi0"
-    iothread     = true
-    size         = each.value.disk
+    
+    user_account {
+      username = "ubuntu"
+      password = "ubuntu"
+      keys     = []
+    }
+
+    ip_config {
+      ipv4 {
+        address = each.value.ip_address
+        gateway = "192.168.1.1"
+      }
+    }
+
+    dns {
+      servers = ["8.8.8.8", "8.8.4.4"]
+    }
+
+    user_data_file_id = proxmox_virtual_environment_file.cloud_init_config[each.key].id
   }
-  
-  # CD-ROM with Talos ISO
-  cdrom {
-    file_id   = "local:iso/metal-amd64.iso"
-    interface = "ide2"
-  }
-  
-  # Network
-  network_device {
-    bridge = "vmbr0"
-    model  = "virtio"
-  }
-  
-  # VM Settings
-  agent {
-    enabled = true
-  }
-  
-  operating_system {
-    type = "l26"  # Linux 2.6+ kernel
-  }
-  
+
   # Lifecycle
   started = true
   on_boot = true
 }
 
-# Apply Talos configurations to control planes (using DHCP IPs)
-resource "talos_machine_configuration_apply" "controlplane" {
-  for_each = local.controlplane_configs
+# Cloud-init configuration files
+resource "proxmox_virtual_environment_file" "cloud_init_config" {
+  for_each = local.vms
 
-  depends_on = [proxmox_virtual_environment_vm.talos_control_planes]
-  
-  client_configuration        = talos_machine_secrets.machine_secrets.client_configuration
-  machine_configuration_input = data.talos_machine_configuration.controlplane_dhcp[each.key].machine_configuration
-  node                       = try(proxmox_virtual_environment_vm.talos_control_planes[each.key].ipv4_addresses[1][0], "127.0.0.1")
-  
-  config_patches = [
-    yamlencode({
-      machine = {
-        network = {
-          hostname = each.value.hostname
-        }
+  content_type = "snippets"
+  datastore_id = "local"
+  node_name    = each.value.node_name
+
+  source_raw {
+    data = yamlencode({
+      "#cloud-config" = {}
+      hostname        = each.key
+      manage_etc_hosts = true
+      
+      users = [{
+        name                = "ubuntu"
+        groups              = ["adm", "sudo"]
+        shell               = "/bin/bash"
+        sudo                = "ALL=(ALL) NOPASSWD:ALL"
+        lock_passwd         = false
+        passwd              = "$6$rounds=4096$3n.TcfNOJGpIOXx4$QasQZyItSIK8.mXD.C/V4B5lc0p9Qn5h3GYBwShF.lFfxLJ3gUGcjPJIXe.zNnEr6zLg6nLvDlcL2U3h7S/4E0"  # password: ubuntu
+        ssh_authorized_keys = []
+      }]
+
+      package_update = true
+      package_upgrade = true
+
+      packages = [
+        "curl",
+        "wget",
+        "git",
+        "htop",
+        "net-tools",
+        "openssh-server",
+        "qemu-guest-agent"
+      ]
+
+      runcmd = [
+        "systemctl enable qemu-guest-agent",
+        "systemctl start qemu-guest-agent",
+        "systemctl enable ssh",
+        "systemctl start ssh"
+      ]
+
+      power_state = {
+        mode = "reboot"
+        condition = true
       }
     })
-  ]
-}
 
-# Apply Talos configurations to workers (using DHCP IPs)
-resource "talos_machine_configuration_apply" "worker" {
-  for_each = local.worker_configs
-
-  depends_on = [proxmox_virtual_environment_vm.talos_workers]
-  
-  client_configuration        = talos_machine_secrets.machine_secrets.client_configuration
-  machine_configuration_input = data.talos_machine_configuration.worker_dhcp[each.key].machine_configuration
-  node                       = try(proxmox_virtual_environment_vm.talos_workers[each.key].ipv4_addresses[1][0], "127.0.0.1")
-  
-  config_patches = [
-    yamlencode({
-      machine = {
-        network = {
-          hostname = each.value.hostname
-        }
-      }
-    })
-  ]
-}
-
-# Bootstrap the cluster
-resource "talos_machine_bootstrap" "bootstrap" {
-  depends_on = [talos_machine_configuration_apply.controlplane]
-  
-  client_configuration = talos_machine_secrets.machine_secrets.client_configuration
-  node                = try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "127.0.0.1")
-}
-
-# Generate kubeconfig
-resource "talos_cluster_kubeconfig" "kubeconfig" {
-  depends_on = [talos_machine_bootstrap.bootstrap]
-  
-  client_configuration = talos_machine_secrets.machine_secrets.client_configuration
-  node                = try(proxmox_virtual_environment_vm.talos_control_planes["talos-control-plane-1"].ipv4_addresses[1][0], "127.0.0.1")
+    file_name = "${each.key}-cloud-init.yaml"
+  }
 }

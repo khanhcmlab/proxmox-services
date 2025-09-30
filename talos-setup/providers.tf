@@ -4,6 +4,10 @@ terraform {
       source  = "bpg/proxmox"
       version = "~> 0.63"
     }
+    talos = {
+      source  = "siderolabs/talos"
+      version = "~> 0.5"
+    }
   }
   required_version = ">= 1.0"
 }
@@ -13,3 +17,5 @@ provider "proxmox" {
   api_token = "${var.proxmox_user}=${var.proxmox_password}"
   insecure = var.proxmox_tls_insecure
 }
+
+provider "talos" {}
