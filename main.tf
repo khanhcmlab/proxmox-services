@@ -2,52 +2,46 @@
 locals {
   vms = {
     "control-plane-1" = {
-      node_name  = "hp"
-      vm_id      = 110
-      cpu_cores  = 1
-      memory     = 4096
-      disk_size  = 50
-      ip_address = "192.168.1.110/24"
+      node_name = "hp"
+      vm_id     = 110
+      cpu_cores = 1
+      memory    = 4096
+      disk_size = 50
     }
     "worker-1" = {
-      node_name  = "hp"
-      vm_id      = 111
-      cpu_cores  = 3
-      memory     = 28672
-      disk_size  = 50
-      ip_address = "192.168.1.111/24"
+      node_name = "hp"
+      vm_id     = 111
+      cpu_cores = 3
+      memory    = 28672
+      disk_size = 50
     }
     "control-plane-2" = {
-      node_name  = "gl552"
-      vm_id      = 112
-      cpu_cores  = 1
-      memory     = 3072
-      disk_size  = 25
-      ip_address = "192.168.1.112/24"
+      node_name = "gl552"
+      vm_id     = 112
+      cpu_cores = 1
+      memory    = 3072
+      disk_size = 25
     }
     "worker-2" = {
-      node_name  = "gl552"
-      vm_id      = 113
-      cpu_cores  = 3
-      memory     = 5120
-      disk_size  = 25
-      ip_address = "192.168.1.113/24"
+      node_name = "gl552"
+      vm_id     = 113
+      cpu_cores = 3
+      memory    = 5120
+      disk_size = 25
     }
     "control-plane-3" = {
-      node_name  = "pve"
-      vm_id      = 114
-      cpu_cores  = 1
-      memory     = 4096
-      disk_size  = 25
-      ip_address = "192.168.1.114/24"
+      node_name = "pve"
+      vm_id     = 114
+      cpu_cores = 1
+      memory    = 4096
+      disk_size = 25
     }
     "worker-3" = {
-      node_name  = "pve"
-      vm_id      = 115
-      cpu_cores  = 3
-      memory     = 12288
-      disk_size  = 25
-      ip_address = "192.168.1.115/24"
+      node_name = "pve"
+      vm_id     = 115
+      cpu_cores = 3
+      memory    = 12288
+      disk_size = 25
     }
   }
 }
@@ -110,12 +104,7 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vms" {
       keys     = []
     }
 
-    ip_config {
-      ipv4 {
-        address = each.value.ip_address
-        gateway = "192.168.1.1"
-      }
-    }
+
 
     dns {
       servers = ["8.8.8.8", "8.8.4.4"]
