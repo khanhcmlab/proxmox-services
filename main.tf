@@ -7,7 +7,6 @@ locals {
       cpu_cores = 1
       memory    = 4096
       disk_size = 50
-      ip_address = "192.168.1.110/24"
     }
     "worker-1" = {
       node_name = "hp"
@@ -15,7 +14,6 @@ locals {
       cpu_cores = 3
       memory    = 28672
       disk_size = 50
-      ip_address = "192.168.1.111/24"
     }
     "control-plane-2" = {
       node_name = "gl552"
@@ -23,7 +21,6 @@ locals {
       cpu_cores = 1
       memory    = 3072
       disk_size = 25
-      ip_address = "192.168.1.112/24"
     }
     "worker-2" = {
       node_name = "gl552"
@@ -31,7 +28,6 @@ locals {
       cpu_cores = 3
       memory    = 5120
       disk_size = 25
-      ip_address = "192.168.1.113/24"
     }
     "control-plane-3" = {
       node_name = "pve"
@@ -39,7 +35,6 @@ locals {
       cpu_cores = 1
       memory    = 4096
       disk_size = 25
-      ip_address = "192.168.1.114/24"
     }
     "worker-3" = {
       node_name = "pve"
@@ -47,7 +42,6 @@ locals {
       cpu_cores = 3
       memory    = 12288
       disk_size = 25
-      ip_address = "192.168.1.115/24"
     }
   }
 }
@@ -97,25 +91,20 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vms" {
   }
 
   operating_system {
-    type = "l26"  # Linux 2.6+ kernel
+    type = "l26" # Linux 2.6+ kernel
   }
 
   # Cloud-init configuration
   initialization {
     datastore_id = "local-lvm"
-    
+
     user_account {
       username = "ubuntu"
       password = "ubuntu"
       keys     = []
     }
 
-    ip_config {
-      ipv4 {
-        address = each.value.ip_address
-        gateway = "192.168.1.1"
-      }
-    }
+
 
     dns {
       servers = ["8.8.8.8", "8.8.4.4"]
@@ -139,21 +128,21 @@ resource "proxmox_virtual_environment_file" "cloud_init_config" {
 
   source_raw {
     data = yamlencode({
-      "#cloud-config" = {}
-      hostname        = each.key
+      "#cloud-config"  = {}
+      hostname         = each.key
       manage_etc_hosts = true
-      
+
       users = [{
         name                = "ubuntu"
         groups              = ["adm", "sudo"]
         shell               = "/bin/bash"
         sudo                = "ALL=(ALL) NOPASSWD:ALL"
         lock_passwd         = false
-        passwd              = "$6$rounds=4096$3n.TcfNOJGpIOXx4$QasQZyItSIK8.mXD.C/V4B5lc0p9Qn5h3GYBwShF.lFfxLJ3gUGcjPJIXe.zNnEr6zLg6nLvDlcL2U3h7S/4E0"  # password: ubuntu
+        passwd              = "$6$rounds=4096$3n.TcfNOJGpIOXx4$QasQZyItSIK8.mXD.C/V4B5lc0p9Qn5h3GYBwShF.lFfxLJ3gUGcjPJIXe.zNnEr6zLg6nLvDlcL2U3h7S/4E0" # password: ubuntu
         ssh_authorized_keys = []
       }]
 
-      package_update = true
+      package_update  = true
       package_upgrade = true
 
       packages = [
@@ -174,7 +163,7 @@ resource "proxmox_virtual_environment_file" "cloud_init_config" {
       ]
 
       power_state = {
-        mode = "reboot"
+        mode      = "reboot"
         condition = true
       }
     })

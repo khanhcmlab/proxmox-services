@@ -8,12 +8,12 @@ This Terraform configuration creates six virtual machines on Proxmox nodes using
 
 | VM Name | Node | VM ID | CPU | RAM | Disk | Role | IP Address |
 |---------|------|-------|-----|-----|------|------|------------|
-| control-plane-1 | hp | 110 | 1 core | 4GB | 50GB | Control Plane | 192.168.1.110 |
-| worker-1 | hp | 111 | 3 cores | 28GB | 50GB | Worker Node | 192.168.1.111 |
-| control-plane-2 | gl552 | 112 | 1 core | 3GB | 25GB | Control Plane | 192.168.1.112 |
-| worker-2 | gl552 | 113 | 3 cores | 5GB | 25GB | Worker Node | 192.168.1.113 |
-| control-plane-3 | pve | 114 | 1 core | 4GB | 25GB | Control Plane | 192.168.1.114 |
-| worker-3 | pve | 115 | 3 cores | 12GB | 25GB | Worker Node | 192.168.1.115 |
+| control-plane-1 | hp | 110 | 1 core | 4GB | 50GB | Control Plane | Dynamic (DHCP) |
+| worker-1 | hp | 111 | 3 cores | 28GB | 50GB | Worker Node | Dynamic (DHCP) |
+| control-plane-2 | gl552 | 112 | 1 core | 3GB | 25GB | Control Plane | Dynamic (DHCP) |
+| worker-2 | gl552 | 113 | 3 cores | 5GB | 25GB | Worker Node | Dynamic (DHCP) |
+| control-plane-3 | pve | 114 | 1 core | 4GB | 25GB | Control Plane | Dynamic (DHCP) |
+| worker-3 | pve | 115 | 3 cores | 12GB | 25GB | Worker Node | Dynamic (DHCP) |
 
 **OS**: Ubuntu 24.04 LTS (minimal cloud image)
 
@@ -117,8 +117,9 @@ After deployment, you can:
 ## Configuration Details
 
 ### Network Configuration
-- Both VMs are connected to the `vmbr0` bridge
+- All VMs are connected to the `vmbr0` bridge
 - Network interface uses VirtIO for better performance
+- **Dynamic IP addressing** via DHCP (no static IP configuration required)
 
 ### Storage Configuration
 - Boot disk: 50GB on `local-lvm` storage
@@ -182,7 +183,7 @@ After deployment, your Ubuntu VMs are **automatically configured and ready to us
 
 ### ✅ What's Already Configured
 - **Ubuntu 24.04 LTS**: Minimal cloud image pre-installed
-- **Static IP addresses**: As specified in the configuration
+- **Dynamic IP addresses**: Automatically assigned via DHCP
 - **SSH access**: Ready with `ubuntu` user
 - **Essential packages**: curl, wget, git, htop, net-tools installed
 - **QEMU Guest Agent**: Enabled for better Proxmox integration
@@ -194,15 +195,21 @@ After deployment, your Ubuntu VMs are **automatically configured and ready to us
 
 ### 🌐 Access Your VMs
 
-Connect to any VM using SSH:
+Get the dynamic IP addresses and connect via SSH:
 ```bash
-# Connect to each VM
-ssh ubuntu@192.168.1.110  # control-plane-1
-ssh ubuntu@192.168.1.111  # worker-1
-ssh ubuntu@192.168.1.112  # control-plane-2
-ssh ubuntu@192.168.1.113  # worker-2
-ssh ubuntu@192.168.1.114  # control-plane-3
-ssh ubuntu@192.168.1.115  # worker-3
+# First, get the current IP addresses
+terraform output vm_ips
+
+# Then connect to each VM using the assigned IPs
+terraform output ssh_connections
+```
+
+Example output:
+```bash
+# The output will show commands like:
+# ssh ubuntu@192.168.1.XXX  # control-plane-1 (actual IP assigned by DHCP)
+# ssh ubuntu@192.168.1.XXY  # worker-1 (actual IP assigned by DHCP)
+# ... etc
 ```
 
 ### 📋 Get VM Information
@@ -217,16 +224,55 @@ terraform output vm_ips
 terraform output ssh_connections
 ```
 
-## Static IP Configuration
+## Dynamic IP Configuration
 
-| VM Name | IP Address | Role |
-|---------|------------|------|
-| control-plane-1 | 192.168.1.110 | Control Plane |
-| worker-1 | 192.168.1.111 | Worker Node |
-| control-plane-2 | 192.168.1.112 | Control Plane |
-| worker-2 | 192.168.1.113 | Worker Node |
-| control-plane-3 | 192.168.1.114 | Control Plane |
-| worker-3 | 192.168.1.115 | Worker Node |
+All VMs use **DHCP for automatic IP assignment**. This provides:
+
+- ✅ **Network Flexibility**: Works in any network environment
+- ✅ **No IP Conflicts**: DHCP handles IP assignment automatically  
+- ✅ **Easier Deployment**: No need to configure specific IP ranges
+- ✅ **Better Portability**: Configuration works across different networks
+
+| VM Name | Role | IP Assignment |
+|---------|------|---------------|
+| control-plane-1 | Control Plane | Dynamic (DHCP) |
+| worker-1 | Worker Node | Dynamic (DHCP) |
+| control-plane-2 | Control Plane | Dynamic (DHCP) |
+| worker-2 | Worker Node | Dynamic (DHCP) |
+| control-plane-3 | Control Plane | Dynamic (DHCP) |
+| worker-3 | Worker Node | Dynamic (DHCP) |
+
+### 📋 Get Current IP Addresses
+
+```bash
+# View all dynamic IP addresses
+terraform output vm_ips
+
+# Get SSH connection commands with current IPs
+terraform output ssh_connections
+
+# View complete VM information including current IPs
+terraform output vm_summary
+```
+
+## Dynamic IP Benefits & Considerations
+
+### ✅ **Advantages**
+- **Zero Configuration**: No need to plan IP address ranges
+- **Network Portability**: Works on any network with DHCP
+- **Conflict Prevention**: No risk of IP address conflicts
+- **Simplified Management**: No manual IP tracking required
+
+### 📝 **Considerations**
+- **IP Address Changes**: VMs may get different IPs after reboots
+- **Service Discovery**: Use hostnames or dynamic DNS if needed
+- **Monitoring**: Use `terraform output` commands to track current IPs
+
+### 🔧 **For Consistent IPs (Optional)**
+If you need predictable IP addresses:
+1. **DHCP Reservations**: Configure your DHCP server to assign the same IPs based on MAC addresses
+2. **Static Assignment**: Modify the configuration to use static IPs again
+3. **DNS**: Set up local DNS entries for hostname-based access
 
 ## Next Steps
 
