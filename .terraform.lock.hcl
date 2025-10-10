@@ -6,6 +6,7 @@ provider "registry.terraform.io/bpg/proxmox" {
   constraints = "~> 0.63"
   hashes = [
     "h1:5qvDHVUhOguPz9HvsCIVYjl69KSSHwmyjoUp5s+tYxs=",
+    "h1:6SUEO79X1q1ERWkifvQW4Y62XTPb6PSWzXRGSCmg0mU=",
     "zh:1b8fa4a228fdc42fabe8ed694a2b7a486cb910813d3a4f598c0b0b20691fad80",
     "zh:3161bc138cf47ea469b35a9dc1f5a04c149ffe1575b443f0221cca88dce6bc2f",
     "zh:45e499950cc8b1c132fd26ae73b241cbf4f80df2751076ead096fa76b6237721",

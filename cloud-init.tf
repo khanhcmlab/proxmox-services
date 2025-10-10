@@ -8,7 +8,7 @@ locals {
     }
     "worker-1" = {
       hostname = "worker-1"
-      ip       = "192.168.1.111" 
+      ip       = "192.168.1.111"
       node     = "hp"
     }
     "control-plane-2" = {

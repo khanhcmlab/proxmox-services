@@ -2,7 +2,7 @@
 output "vm_ips" {
   description = "IP addresses of all VMs"
   value = {
-    for name, vm in proxmox_virtual_environment_vm.ubuntu_vms : 
+    for name, vm in proxmox_virtual_environment_vm.ubuntu_vms :
     name => try(vm.ipv4_addresses[1][0], "Not available yet")
   }
 }
